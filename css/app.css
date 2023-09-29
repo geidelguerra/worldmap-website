@@ -3,3 +3,7 @@
   stroke-width: 1px;
   stroke-linecap: round;
 }
+
+.country-selected {
+  fill: green;
+}

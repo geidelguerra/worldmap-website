@@ -1,25 +1,63 @@
-const highligthedCountryDiv = document.querySelector('#highlighted-country');
+const highligthedCountryTextElement = document.querySelector('#highlighted-country');
 
-let highlightedCountry = null;
+let highlightedCountryElement = null;
+let selectedCountryElement = null;
 
 /**
  * @param {SVGAElement} element 
  */
 function setHighlightedCountry(element) {
-  if (element !== highlightedCountry) {
-    if (highlightedCountry !== null) {
-      highlightedCountry.classList.remove('country-highlighted');
+  if (element !== highlightedCountryElement) {
+    if (highlightedCountryElement !== null) {
+      highlightedCountryElement.classList.remove('country-highlighted');
     }
 
-    highlightedCountry = element;
+    highlightedCountryElement = element;
 
-    if (highlightedCountry) {
-      highligthedCountryDiv.innerText = highlightedCountry.id;
-      highlightedCountry.classList.add('country-highlighted');
-    } else {
-      highligthedCountryDiv.innerText = '';
+    if (highlightedCountryElement) {
+      highlightedCountryElement.classList.add('country-highlighted');
     }
+
+    updateSelectedCountryTextElement();
   }
+}
+
+/**
+ * @param {SVGAElement} element 
+ */
+function setSelectedCountry(element) {
+  if (element !== selectedCountryElement) {
+    if (selectedCountryElement !== null) {
+      selectedCountryElement.classList.remove('country-selected');
+    }
+
+    selectedCountryElement = element;
+
+    if (selectedCountryElement) {
+      selectedCountryElement.classList.add('country-selected');
+    }
+
+    updateSelectedCountryTextElement();
+  }
+}
+
+function updateSelectedCountryTextElement() {
+  if (selectedCountryElement && highlightedCountryElement) {
+    highligthedCountryTextElement.innerText = `[${selectedCountryElement.id}] ${highlightedCountryElement.id}`;
+    return;
+  }
+  
+  if (selectedCountryElement) {
+    highligthedCountryTextElement.innerText = selectedCountryElement.id;
+    return;
+  } 
+  
+  if (highlightedCountryElement) {
+    highligthedCountryTextElement.innerText = highlightedCountryElement.id;
+    return;
+  }
+
+  highligthedCountryTextElement.innerText = '';
 }
 
 /**
@@ -29,7 +67,7 @@ function setHighlightedCountry(element) {
  */
 function search(value) {
   value = value.toLowerCase();
-  
+
   const elements = document.querySelectorAll('#Countries path');
   for (let element of document.querySelectorAll('#Countries path')) {
     if (element.id.toLowerCase().indexOf(value) !== -1) {
@@ -41,15 +79,15 @@ function search(value) {
 }
 
 document.querySelector('#Countries').addEventListener('mousemove', function (e) {
-  console.log(e.target.id);
   setHighlightedCountry(e.target);
+});
+
+document.querySelector('#Countries').addEventListener('mouseup', function (e) {
+  console.log('Clicked:', e.target.id);
+  setSelectedCountry(e.target);
 });
 
 document.querySelector('#search').addEventListener('input', function (e) {
   const country = search(e.target.value);
-  if (country) {
-    setHighlightedCountry(country);
-  } else {
-    
-  }
+  setHighlightedCountry(country);
 });
