@@ -1,0 +1,5 @@
+.country-highlighted {
+  stroke: red;
+  stroke-width: 1px;
+  stroke-linecap: round;
+}
