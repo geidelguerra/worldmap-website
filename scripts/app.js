@@ -1,93 +1,85 @@
-const highligthedCountryTextElement = document.querySelector('#highlighted-country');
+(() => {
+  const state = {
+    showSearchModal: false,
+  };
 
-let highlightedCountryElement = null;
-let selectedCountryElement = null;
+  const searchBoxDialog = document.querySelector('#search-box');
+  const searchForm = document.querySelector('#search-form');
+  const searchInput = document.querySelector('#search-input');
 
-/**
- * @param {SVGAElement} element 
- */
-function setHighlightedCountry(element) {
-  if (element !== highlightedCountryElement) {
-    if (highlightedCountryElement !== null) {
-      highlightedCountryElement.classList.remove('country-highlighted');
-    }
+  const map = L.map('map', {
+    trackResize: true,
+    center: [21.3, -80],
+    zoom: 5,
+    zoomSnap: 0,
+  });
 
-    highlightedCountryElement = element;
+  map.addEventListener('zoom', (e) => console.log('Zoom:', map.getZoom()));
+  map.addEventListener('move', (e) => console.log('Coordinates:', map.getCenter()));
 
-    if (highlightedCountryElement) {
-      highlightedCountryElement.classList.add('country-highlighted');
-    }
+  L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '&copy; <a href="http://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+  }).addTo(map);
 
-    updateSelectedCountryTextElement();
-  }
-}
+  function setShowModal(value) {
+    state.showSearchModal = value;
 
-/**
- * @param {SVGAElement} element 
- */
-function setSelectedCountry(element) {
-  if (element !== selectedCountryElement) {
-    if (selectedCountryElement !== null) {
-      selectedCountryElement.classList.remove('country-selected');
-    }
-
-    selectedCountryElement = element;
-
-    if (selectedCountryElement) {
-      selectedCountryElement.classList.add('country-selected');
-    }
-
-    updateSelectedCountryTextElement();
-  }
-}
-
-function updateSelectedCountryTextElement() {
-  if (selectedCountryElement && highlightedCountryElement) {
-    highligthedCountryTextElement.innerText = `[${selectedCountryElement.id}] ${highlightedCountryElement.id}`;
-    return;
-  }
-  
-  if (selectedCountryElement) {
-    highligthedCountryTextElement.innerText = selectedCountryElement.id;
-    return;
-  } 
-  
-  if (highlightedCountryElement) {
-    highligthedCountryTextElement.innerText = highlightedCountryElement.id;
-    return;
-  }
-
-  highligthedCountryTextElement.innerText = '';
-}
-
-/**
- * 
- * @param {string} value 
- * @returns {SVGAElement|null}
- */
-function search(value) {
-  value = value.toLowerCase();
-
-  const elements = document.querySelectorAll('#Countries path');
-  for (let element of document.querySelectorAll('#Countries path')) {
-    if (element.id.toLowerCase().indexOf(value) !== -1) {
-      return element;
+    if (value) {
+      searchBoxDialog.showModal();
+    } else {
+      searchBoxDialog.close();
     }
   }
 
-  return null;
-}
+  function search(q) {
+    fetch(`https://nominatim.openstreetmap.org/search.php?q=${q}&polygon_geojson=1&format=json`)
+      .then((response) => response.json())
+      .then((results) => {
+        if (results.length === 0) {
+          return;
+        }
 
-document.querySelector('#Countries').addEventListener('mousemove', function (e) {
-  setHighlightedCountry(e.target);
-});
+        const data = {
+          type: 'Feature',
+          geometry: results[0].geojson,
+        };
 
-document.querySelector('#Countries').addEventListener('mouseup', function (e) {
-  console.log('Clicked:', e.target.id);
-  setSelectedCountry(e.target);
-});
+        L.geoJSON(data, {
+          style: {
+            fillColor: '#ff0000',
+            fill: true
+          }
+        }).addTo(map);
+      });
+  }
 
-document.querySelector('#search').addEventListener('input', function (e) {
-  const country = search(e.target.value);
-  setHighlightedCountry(country);
-});
+  /**
+   * @param {InputEvent} e
+   */
+  function onSearchInput(e) {
+    console.log(e);
+  }
+
+  /**
+   * @param {SubmitEvent} e 
+   */
+  function onSearchFormSubmit(e) {
+    e.preventDefault();
+    search(searchInput.value.trim());
+    setShowModal(false);
+  }
+
+  /**
+   * @param {KeyboardEvent} e
+   */
+  function onKeyPress(e) {
+    if (e.ctrlKey && e.key === '/') {
+      setShowModal(!state.showSearchModal);
+    }
+  }
+
+  document.addEventListener('keyup', onKeyPress);
+  searchForm.addEventListener('submit', onSearchFormSubmit);
+  searchInput.addEventListener('input', onSearchInput);
+})();

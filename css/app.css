@@ -1,9 +1,12 @@
-.country-highlighted {
-  stroke: red;
-  stroke-width: 1px;
-  stroke-linecap: round;
+html, body {
+  margin: 0;
+  height: 100%;
 }
 
-.country-selected {
-  fill: green;
+#map {
+  height: 100vh;
+}
+
+#search-box {
+  background-color: grey;
 }
