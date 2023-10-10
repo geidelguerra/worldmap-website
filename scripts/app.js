@@ -39,6 +39,40 @@
     }
   }
 
+  class Database {
+    constructor(name) {
+      this.name = name;
+    }
+
+    async get(store_name, key) {
+      let request = window.indexedDB.open(this.name);
+      return new Promise((resolve, reject) => {
+        request.onsuccess = (e) => {
+          const db = e.target.result;
+          const store = db.transaction([store_name], 'readwrite').objectStore(store_name);
+          request = store.getKey(key);
+          request.onsuccess = (e) => resolve(e.target.result);
+          request.onerror = reject;
+        }
+        request.onerror = reject;
+      });
+    }
+
+    async put(store_name, key, value) {
+      let request = window.indexedDB.open(this.name);
+      return new Promise((resolve, reject) => {
+        request.onsuccess = (e) => {
+          const db = e.target.result;
+          const store = db.transaction(store_name).objectStore(store_name);
+          request = store.getKey(key);
+          request.onsuccess = (e) => resolve(e.target.result);
+          request.onerror = reject;
+        }
+        request.onerror = reject;
+      });
+    }
+  }
+
   const state = {
     showSearchModal: false,
   };
@@ -97,6 +131,8 @@
         fill: true
       }
     }).addTo(map);
+
+    map.panTo([results[0].lat, results[0].lon])
   }
 
   /**
