@@ -1,4 +1,4 @@
-(() => {
+(async () => {
   class Storage {
     constructor(prefix) {
       this.prefix = prefix || '';
@@ -42,33 +42,54 @@
   class Database {
     constructor(name) {
       this.name = name;
+      this.db = null;
     }
 
-    async get(store_name, key) {
-      let request = window.indexedDB.open(this.name);
+    async open() {
       return new Promise((resolve, reject) => {
+        const request = window.indexedDB.open(this.name);
         request.onsuccess = (e) => {
+          console.log('Connected');
+          this.db = e.target.result;
+          resolve(e);
+        };
+
+        request.onerror = (e) => {
+          console.error('Fail to connect to db:', e);
+          reject(e);
+        };
+
+        request.onupgradeneeded = (e) => {
           const db = e.target.result;
-          const store = db.transaction([store_name], 'readwrite').objectStore(store_name);
-          request = store.getKey(key);
-          request.onsuccess = (e) => resolve(e.target.result);
-          request.onerror = reject;
+
+          db.onerror = (e) => {
+            console.log('Fail to init db:', e);
+            reject(e);
+          };
+
+          db.createObjectStore('searchResults', { keyPath: 'query' });
         }
-        request.onerror = reject;
       });
     }
 
-    async put(store_name, key, value) {
-      let request = window.indexedDB.open(this.name);
+    async insertOne(storeName, data) {
       return new Promise((resolve, reject) => {
-        request.onsuccess = (e) => {
-          const db = e.target.result;
-          const store = db.transaction(store_name).objectStore(store_name);
-          request = store.getKey(key);
-          request.onsuccess = (e) => resolve(e.target.result);
-          request.onerror = reject;
-        }
-        request.onerror = reject;
+        const transaction = this.db.transaction(storeName, 'readwrite');
+        transaction.onsuccess = resolve;
+        transaction.onerror = reject;
+        const store = transaction.objectStore(storeName);
+        const request = store.add(data);
+        request.onsuccess = resolve;
+      });
+    }
+
+    async findOne(storeName, key) {
+      return new Promise((resolve, reject) => {
+        const transaction = this.db.transaction(storeName, 'readwrite');
+        transaction.onerror = reject;
+        const store = transaction.objectStore(storeName);
+        const request = store.get(key);
+        request.onsuccess = (e) => resolve(e.target.result);
       });
     }
   }
@@ -77,8 +98,9 @@
     showSearchModal: false,
   };
 
-  const searchCache = new Storage('search_');
   const settings = new Storage('settings_');
+  const database = new Database('worldmap');
+  await database.open();
 
   const searchBoxDialog = document.querySelector('#search-box');
   const searchForm = document.querySelector('#search-form');
@@ -109,15 +131,13 @@
     }
   }
 
-  async function search(q) {
-    let results = searchCache.get(q);
+  async function search(query) {
+    let results = (await database.findOne('searchResults', query))?.results;
+    
     if (!results) {
-      results = await fetch(`https://nominatim.openstreetmap.org/search.php?q=${q}&polygon_geojson=1&format=json`)
-        .then((response) => response.json())
-        .then((results) => {
-          searchCache.put(q, results);
-          return results;
-        });
+      results = await fetch(`https://nominatim.openstreetmap.org/search.php?q=${query}&polygon_geojson=1&format=json`).then((response) => response.json());
+      console.log(query, results);
+      await database.insertOne('searchResults', { query, results });
     }
 
     const data = {
@@ -139,7 +159,7 @@
    * @param {InputEvent} e
    */
   function onSearchInput(e) {
-    console.log(e);
+    // console.log(e);
   }
 
   /**
@@ -149,6 +169,7 @@
     e.preventDefault();
     search(searchInput.value.trim());
     setShowModal(false);
+    searchInput.value = '';
   }
 
   /**
