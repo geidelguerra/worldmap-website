@@ -102,9 +102,12 @@
   const database = new Database('worldmap');
   await database.open();
 
-  const searchBoxDialog = document.querySelector('#search-box');
+  /** @type {HTMLElement} */
+  const sidebarContainer = document.querySelector('#sidebar');
+  // const searchBoxDialog = document.querySelector('#search-box');
   const searchForm = document.querySelector('#search-form');
   const searchInput = document.querySelector('#search-input');
+  const searchResultsContainer = document.querySelector('#search-results');
 
   const map = L.map('map', {
     trackResize: true,
@@ -125,34 +128,31 @@
     state.showSearchModal = value;
 
     if (value) {
-      searchBoxDialog.showModal();
+      // searchBoxDialog.showModal();
+      sidebarContainer.style.visibility = 'visible';
     } else {
-      searchBoxDialog.close();
+      sidebarContainer.style.visibility = 'hidden';
+      // searchBoxDialog.close();
     }
   }
 
+  /**
+   * 
+   * @param {String} query 
+   * @returns {Object}
+   */
   async function search(query) {
+    query = query.toLocaleLowerCase();
     let results = (await database.findOne('searchResults', query))?.results;
     
     if (!results) {
       results = await fetch(`https://nominatim.openstreetmap.org/search.php?q=${query}&polygon_geojson=1&format=json`).then((response) => response.json());
-      console.log(query, results);
       await database.insertOne('searchResults', { query, results });
     }
 
-    const data = {
-      type: 'Feature',
-      geometry: results[0].geojson,
-    };
+    console.log(query, results);
 
-    L.geoJSON(data, {
-      style: {
-        fillColor: '#ff0000',
-        fill: true
-      }
-    }).addTo(map);
-
-    map.panTo([results[0].lat, results[0].lon])
+    return results;
   }
 
   /**
@@ -162,14 +162,42 @@
     // console.log(e);
   }
 
+  function setSelectedSearchResult(result) {
+    console.log(result);
+
+    const data = {
+      type: 'Feature',
+      geometry: result.geojson,
+    };
+
+    L.geoJSON(data, {
+      style: {
+        fillColor: '#ff0000',
+        fill: true
+      }
+    }).addTo(map);
+
+    map.panTo([result.lat, result.lon]);
+  }
+
   /**
    * @param {SubmitEvent} e 
    */
-  function onSearchFormSubmit(e) {
+  async function onSearchFormSubmit(e) {
     e.preventDefault();
-    search(searchInput.value.trim());
-    setShowModal(false);
-    searchInput.value = '';
+    
+    searchResultsContainer.innerHTML = '';
+
+    const results = await search(searchInput.value.trim());
+    
+    results.forEach((result) => {
+      const button = document.createElement('button');
+      button.classList.add('result-button');
+      button.onclick = () => setSelectedSearchResult(result);
+      button.innerHTML = `<span>${result.addresstype}</span><span>${result.display_name}</span>`;
+
+      searchResultsContainer.insertAdjacentElement('beforeend', button);
+    });
   }
 
   /**
